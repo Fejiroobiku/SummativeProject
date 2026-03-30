@@ -1,0 +1,71 @@
+Part 2 – Static ELF Analysis
+
+A. ELF Structure
+
+1. Architecture
+Command: readelf -h array_processor | grep Machine
+Output: Machine: Advanced Micro Devices X86-64
+
+Explanation: The binary is compiled for 64-bit x86 architecture (x86-64), which is standard for modern Linux systems.
+
+2. Entry Point
+Command: readelf -h array_processor | grep Entry
+Output: Entry point address: 0x401050
+
+Explanation: This points to the _start function, not main(). The _start function initializes the C runtime environment before calling main().
+
+3. Sections
+Command: readelf -S array_processor | grep -E '\.text|\.data|\.bss|\.plt|\.got'
+
+Section     Purpose
+.text       Contains executable code (main, init_array, find_max, calc_sum)
+.data       Stores initialized global variables (e.g., operation_count = 0)
+.bss        Holds uninitialized global variables (zero-initialized at runtime)
+.plt        Procedure Linkage Table - stubs for dynamic library calls (printf, malloc, free)
+.got        Global Offset Table - updated by the dynamic linker with real function addresses
+
+4. Dynamic Linking
+Command: readelf -d array_processor | grep NEEDED
+Output: Shared library: [libc.so.6]
+
+Conclusion: The binary is dynamically linked and depends on the standard C library (libc.so.6).
+
+B. Disassembly Analysis
+
+Command used: objdump -d array_processor
+
+Key Functions Identified:
+
+- main()          ~ 0x401172    Main program logic, calls malloc and user functions
+- init_array()    ~ 0x4011e0    Loop that initializes array and updates global counter
+- find_max()      ~ 0x401247    Finds maximum value in array using loop and comparison
+- calc_sum()      ~ 0x4012cd    Calculates sum of array elements
+
+Conditional Jump Example (in find_max):
+
+401290:   39 45 fc    cmp    %eax, -0x4(%rbp)     # Compare max_val with arr[i]
+401293:   7d 0e       jge    4012a3                # Jump if max_val >= arr[i]
+
+C equivalent:
+if (arr[i] > max_val) {
+    max_val = arr[i];
+}
+
+Loop Control Example (in calc_sum):
+
+401313:   8b 45 f8    mov    -0x8(%rbp), %eax      # Load current i
+401316:   3b 45 e4    cmp    -0x1c(%rbp), %eax     # Compare i with array size
+401319:   7c db       jl     4012f6                 # Jump back if i < size
+
+C equivalent:
+for (int i = 0; i < size; i++)
+
+Control Flow Notes:
+- Function arguments are passed via registers (%rdi, %rsi, %rdx, etc.)
+- callq instruction pushes return address and jumps to the function
+- ret instruction returns to the caller
+- Integer return values are placed in %eax
+
+---
+
+That's it for Part 2.

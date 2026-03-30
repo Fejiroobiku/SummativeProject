@@ -1,0 +1,46 @@
+Part 3 – Runtime Behavior with strace
+
+Command:
+strace ./array_processor
+
+Unique System Calls Observed:
+execve, brk, arch_prctl, access, openat, read, close, mmap, mprotect, fstat, write, exit_group
+
+System Call Categorization:
+
+Category                      | System Calls
+------------------------------|---------------------------------------
+Memory Management             | brk, mmap, mprotect
+Terminal I/O                  | write
+Program Startup/Termination   | execve, arch_prctl, access, exit_group
+Dynamic Linking               | openat, read, close, fstat, mmap
+
+Key Observations:
+
+1. malloc() and Heap Growth
+   numbers = malloc(size * sizeof(int));   // 24 bytes
+
+   strace output:
+   brk(NULL)           = 0x555555559000
+   brk(0x55555557a000) = 0x55555557a000
+
+   - malloc() uses brk() for small allocations (< 128 KB).
+   - Heap grows by ~128 KB for current and future allocations.
+
+2. printf() and Terminal Output
+   strace output:
+   write(1, "=== Array Processing Results ===\n", 33)
+   write(1, "Array initialized with values: ", 32)
+   write(1, "5 10 15 20 25 30 ", 18)
+   write(1, "Maximum value: 30\n", 18)
+
+   - printf() formats in user space and calls write(1, ...) to stdout.
+
+Summary:
+- malloc()  → brk() for small heap allocations
+- printf()  → write() system calls for output
+- Heap growth uses brk (not mmap) because allocation is small
+- mmap is used only for loading shared libraries (libc.so.6)
+
+Key Takeaway:
+Small memory allocations are handled efficiently with brk, dynamic linking uses mmap, and terminal output uses the write system call.
