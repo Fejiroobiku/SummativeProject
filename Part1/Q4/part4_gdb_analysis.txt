@@ -1,0 +1,85 @@
+Part 4 – Dynamic Control Flow with gdb
+
+Setup Command:
+gcc -Wall -O0 -fno-inline -g -o array_processor_debug array_processor.c
+gdb ./array_processor_debug
+
+Setting Breakpoints:
+(gdb) break _start
+(gdb) break main
+(gdb) break find_max
+(gdb) run
+
+1. Stack Frame Changes (bt)
+
+At main():
+(gdb) bt
+#0  main ()
+#1  __libc_start_main
+#2  _start
+
+At find_max():
+(gdb) bt
+#0  find_max (arr=0x5555555592a0, size=6)
+#1  main ()
+
+Explanation: Shows the function call chain: main → find_max
+
+2. Register State During Conditional Branch
+
+Breakpoint at conditional jump:
+(gdb) break *0x401293
+(gdb) continue
+(gdb) info registers
+
+rax = 20        # current arr[i]
+rbp = 0x7fffffffde70
+
+(gdb) print *(int*)($rbp - 4)
+$1 = 15         # current max_val
+
+Condition: cmp 20, 15 → jge not taken (update happens)
+
+3. Memory Inspection
+
+Stack Variable:
+(gdb) print &size
+$1 = (int *) 0x7fffffffde5c
+(gdb) print size
+$2 = 6
+
+Heap Allocation:
+(gdb) print numbers
+$1 = (int *) 0x5555555592a0
+(gdb) x/6dw 0x5555555592a0
+0x5555555592a0: 5 10 15 20 25 30
+
+Global Variable:
+(gdb) print &operation_count
+$1 = (int *) 0x404018
+(gdb) print operation_count
+$2 = 19
+
+4. Memory Location Explanations
+
+Memory Type     | Location          | Address          | Characteristics
+----------------|-------------------|------------------|------------------------
+Global          | .data section     | 0x404018         | Fixed address, program lifetime
+Heap            | Heap segment      | 0x5555555592a0   | Dynamic, until free()
+Local           | Stack segment     | 0x7fffffffde5c   | Function scope, frame-relative
+
+Key Points:
+- Global variable (operation_count) resides in .data section
+- Heap allocation (numbers array) is in heap segment (managed by brk)
+- Local variables (size, max_val, etc.) are on the stack (accessed via rbp offset)
+
+Stack Layout:
+High addresses
++------------------+
+| Return address   |
++------------------+ ← rbp
+| Saved rbp        |
++------------------+
+| Local variables  | ← rbp - offset
++------------------+ ← rsp
+Low addresses

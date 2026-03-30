@@ -1,0 +1,56 @@
+Part 5 – Integrated Analysis Summary
+
+Control Flow Overview
+
+_start
+   │
+   ├─→ Setup stack and environment
+   ├─→ Call __libc_start_main
+   │      │
+   │      └─→ main
+   │             │
+   │             ├─→ malloc() ──→ brk syscall (heap allocation)
+   │             ├─→ init_array() ──→ Loop: fill array on heap
+   │             ├─→ find_max() ──→ Loop with conditional branch (jge)
+   │             ├─→ calc_sum() ──→ Loop with accumulation
+   │             ├─→ printf() ──→ write syscall (terminal output)
+   │             └─→ free() ──→ deallocate heap memory
+   │
+   └─→ exit_group() syscall
+
+Function Interaction Sequence
+
+Step | Function                | Action                              | Key Effect
+-----|-------------------------|-------------------------------------|-------------------
+1    | _start                  | Program entry point                 | Setup runtime
+2    | __libc_start_main       | C runtime initialization            | Calls main()
+3    | main                    | Allocate memory                     | malloc → brk
+4    | main → init_array       | Initialize array                    | Write values to heap
+5    | main → find_max         | Find maximum value                  | Conditional (jge)
+6    | main → calc_sum         | Calculate sum and average           | Loop accumulation
+7    | main                    | Output results                      | printf → write syscall
+8    | main                    | Free allocated memory               | free()
+9    | runtime                 | Program termination                 | exit_group syscall
+
+Memory Classification
+
+Type      | Location           | Example Address    | Characteristics
+----------|--------------------|--------------------|-----------------------------------
+Stack     | High addresses     | ~0x7fffffffde5c    | Local variables (size, i, max_val), function scope
+Heap      | Heap segment       | 0x5555555592a0     | Dynamic array (numbers), grows via brk
+Global    | .data section      | 0x404018           | operation_count, fixed address, full program lifetime
+
+PLT/GOT Usage
+
+- PLT (Procedure Linkage Table): Contains stubs for library functions (malloc@plt, printf@plt, free@plt)
+- GOT (Global Offset Table): Stores actual addresses of functions after resolution
+- First call: PLT triggers dynamic linker to resolve the function
+- Later calls: Direct jump to real libc function (lazy binding)
+
+Key Insights
+
+1. _start is the real ELF entry point. It calls __libc_start_main, which sets up the C runtime and then calls main().
+2. Memory is used in three regions: stack for locals, heap for dynamic array, .data for globals.
+3. System calls are triggered by library functions: brk (malloc), write (printf), exit_group (exit).
+4. Dynamic linking uses PLT/GOT mechanism with lazy binding for efficiency.
+5. High-level C constructs (loops, if-statements, malloc/printf) translate to low-level assembly and syscalls.
